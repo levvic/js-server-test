@@ -33,13 +33,14 @@ const routes = {
     'POST': createComment
   },
   '/comments/:id' : {
-    'PUT': updateComment
+    'PUT': updateComment,
+    'DELETE': deleteComment
   },
   '/comments/:id/upvote' : {
-
+    'PUT': upvoteComment
   },
   '/comments/:id/downvote' : {
-
+    'PUT': downvoteComment
   }
 };
 
@@ -302,6 +303,65 @@ function updateComment(url, request) {
 
   return response;
 }
+
+function deleteComment(url, request) {
+  const id = Number(url.split('/').filter(segment => segment)[1]);
+  const savedComment = database.comments[id];
+  const response = {};
+
+  if (!id || !savedComment) {
+    response.status = 404;
+  } else {
+    database.comments[id] = null;
+    // delete reference in user model
+    const userCommentIds = database.users[savedComment.username].commentIds;
+    userCommentIds.splice(userCommentIds.indexOf(id), 1);
+    // delete reference in article model
+    const articleCommentIds = database.articles[savedComment.articleId].commentIds;
+    articleCommentIds.splice(articleCommentIds.indexOf(id), 1);
+    response.status = 204;
+  }
+
+  return response;
+}
+
+function upvoteComment(url, request) {
+  const id = Number(url.split('/').filter(segment => segment)[1]);
+  const username = request.body && request.body.username;
+  const response = {};
+
+  let savedCommit = database.comments[id];
+
+  if (savedCommit && database.users[username]) {
+    savedCommit = upvote(savedCommit, username);
+    response.body = { comment: savedCommit };
+    response.status = 200;
+  } else {
+    response.status = 400;
+  }
+
+  return response;
+}
+
+function downvoteComment(url, request) {
+  const id = Number(url.split('/').filter(segment => segment)[1]);
+  const username = request.body && request.body.username;
+  const response = {};
+
+  let savedCommit = database.comments[id];
+
+  if(savedCommit && database.users[username]) {
+    savedCommit = downvote(savedCommit, username);
+    response.body = { comment: savedCommit };
+    response.status = 200;
+  } else {
+    response.status = 400;
+  }
+
+  return response;
+}
+
+
 // Write all code above this line.
 
 const http = require('http');
